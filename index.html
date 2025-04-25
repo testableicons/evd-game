@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>EvD Level 1</title>
+  <style>
+    html, body { margin: 0; padding: 0; overflow: hidden; }
+    #gameCanvas { display: block; background: #000; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    // Canvas and grid configuration
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const COLS = 10;
+    const ROWS = 6;
+    let CELL_WIDTH, CELL_HEIGHT;
+
+    // Asset URLs (from the /mnt/data folder)
+    const ASSET_PATHS = {
+      lawn: 'https://static.wikia.nocookie.net/plantsvszombies/images/3/37/Frontyard.jpg/revision/latest/scale-to-width-down/1200?cb=20120319165842',
+      sunIcon: '/mnt/data/sun.png',
+      sunflower: '/mnt/data/sunflower.png',
+      peashooter: '/mnt/data/peashooter.png',
+      zombie: '/mnt/data/zombie.png'
+    };
+
+    const assets = {};
+    let loadedCount = 0, toLoadCount = Object.keys(ASSET_PATHS).length;
+
+    function loadAssets() {
+      for (const [key, src] of Object.entries(ASSET_PATHS)) {
+        const img = new Image();
+        img.src = src;
+        img.onload = () => {
+          assets[key] = img;
+          if (++loadedCount === toLoadCount) {
+            initCanvas();
+            initGame();
+            requestAnimationFrame(gameLoop);
+          }
+        };
+      }
+    }
+
+    function initCanvas() {
+      canvas.width = assets.lawn.width;
+      canvas.height = assets.lawn.height;
+      CELL_WIDTH = canvas.width / COLS;
+      CELL_HEIGHT = canvas.height / ROWS;
+    }
+
+    // Simple game state with one plant and one invader
+    const gameState = {
+      elapsed: 0,
+      resources: 50,
+      plants: [ { type: 'sunflower', row: 2, col: 2 } ],
+      invaders: [ { type: 'zombie', row: 3, x: canvas ? canvas.width : 0, speed: 30 } ]
+    };
+
+    function initGame() {
+      // Position the invader just off-screen to the right
+      gameState.invaders[0].x = canvas.width;
+    }
+
+    function gameLoop(timestamp) {
+      const dt = gameState.elapsed ? (timestamp - gameState.elapsed) / 1000 : 0;
+      gameState.elapsed = timestamp;
+      update(dt);
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function update(dt) {
+      // Move invaders leftwards
+      gameState.invaders.forEach(z => {
+        z.x -= z.speed * dt;
+      });
+    }
+
+    function draw() {
+      // Draw background lawn
+      ctx.drawImage(assets.lawn, 0, 0);
+
+      // Draw grid (optional for debugging)
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      for (let i = 0; i <= COLS; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * CELL_WIDTH, 0);
+        ctx.lineTo(i * CELL_WIDTH, canvas.height);
+        ctx.stroke();
+      }
+      for (let j = 0; j <= ROWS; j++) {
+        ctx.beginPath();
+        ctx.moveTo(0, j * CELL_HEIGHT);
+        ctx.lineTo(canvas.width, j * CELL_HEIGHT);
+        ctx.stroke();
+      }
+
+      // Draw plants
+      gameState.plants.forEach(p => {
+        const img = assets[p.type];
+        const x = p.col * CELL_WIDTH;
+        const y = p.row * CELL_HEIGHT;
+        ctx.drawImage(img, x, y, CELL_WIDTH, CELL_HEIGHT);
+      });
+
+      // Draw invaders
+      gameState.invaders.forEach(z => {
+        const img = assets[z.type];
+        // Keep at same size as cell
+        const y = z.row * CELL_HEIGHT;
+        ctx.drawImage(img, z.x, y, CELL_WIDTH, CELL_HEIGHT);
+      });
+
+      // Draw UI: sun icon and resource count
+      ctx.drawImage(assets.sunIcon, 10, 10, 40, 40);
+      ctx.fillStyle = '#fff';
+      ctx.font = '24px sans-serif';
+      ctx.fillText(gameState.resources, 60, 38);
+    }
+
+    loadAssets();
+  </script>
+</body>
+</html>
